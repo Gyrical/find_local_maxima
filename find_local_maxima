@@ -1,0 +1,65 @@
+"""
+Created on Wed Sep  8 15:10:43 2021
+
+@author: kirsebaer
+"""
+# Find local maxima in 3D image
+
+import random
+import numpy as np
+import nibabel as nib
+import os
+import scipy.ndimage as ndimage
+
+testimg_nu = nib.load("/Users/kirsebaer/Dropbox/Projekte_JJ/2021/TEST/2021_Results_left_nih0_cov_multi/t_nu_thresh.nii")
+img = testimg_nu.get_fdata()
+matrix_test = testimg_nu.affine
+
+# Get local maximum values of desired neighborhood
+# I'll be looking in a 5x5x5 area
+img2 = ndimage.maximum_filter(img, size=(3, 3, 3))
+
+# Threshold the image to find locations of interest
+# I'm assuming 6 standard deviations above the mean for the threshold
+img_thresh = 6.6#img2.mean() + img2.std() * 2
+
+# Since we're looking for maxima find areas greater than img_thresh
+
+# Binarizing and thresholding image to use it as input for ndimage.label
+bin_img = np.zeros_like(img2)
+bin_img[img2 > img_thresh] = 1
+print('bin_img',np.any(img2 > img_thresh))
+print('bin_img',np.any(bin_img > 0))
+
+labels, num_labels = ndimage.label(bin_img)#(img2 > img_thresh)
+
+# Get the positions of the maxima
+coords = ndimage.measurements.center_of_mass(img, labels=labels, index=np.arange(1, num_labels + 1))
+
+# Get the maximum value in the labels
+values = ndimage.measurements.maximum(img, labels=labels, index=np.arange(1, num_labels + 1))
+
+print('This is a new run')
+#print('labels',labels,num_labels)
+print('coords',coords)
+print('values',values)
+print('max',img2.max())
+print('min',img2.min())
+print('mean',img2.mean())
+print('shape',img2.shape)
+print('img_thresh',img_thresh)
+
+for coord in coords:
+    x = round(int(coord[0]))
+    y = round(int(coord[1]))
+    z = round(int(coord[2]))
+    img2[x,y,z] = 50#img.max()*2
+    img2[x+1,y,z] = 50
+    img2[x-1,y,z] = 50
+    img2[x,y+1,z] = 50
+    img2[x,y-1,z] = 50
+    img2[x,y,z+1] = 50
+    img2[x,y,z-1] = 50
+    
+img_save = nib.Nifti1Image(img2,matrix_test)
+nib.save(img_save,"/Users/kirsebaer/Desktop/local_max_img.nii.gz")
